@@ -1,5 +1,5 @@
 *.bin
 *.pt
 /.ipynb*
-macbert/chi_macbert/*
+chinese_macbert/*
 
