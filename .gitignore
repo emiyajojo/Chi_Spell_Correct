@@ -1,5 +1,0 @@
-*.bin
-*.pt
-/.ipynb*
-chinese_macbert/*
-**/*.zip
