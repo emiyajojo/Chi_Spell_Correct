@@ -2,4 +2,4 @@
 *.pt
 /.ipynb*
 chinese_macbert/*
-
+**/*.zip
