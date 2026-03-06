@@ -1,17 +1,22 @@
 import numpy as np
 from transformers import BertTokenizer
 import sys
-sys.path.append(["/hy-tmp/Chi_Spell_Correct"])
+import os
+
+# 保证项目根目录在 path 中，便于正确 import macbert、SimCSE、span_src 等
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from SimCSE.model import TextBackbone
 from span_src.config import Args
 from span_src.model import build_model
 from utils import generate_input, span_decode, edit_distance
+from macbert.utils import Inference as MacBERTInference
+
 import logging
 import json
-import os
 import torch
-
-import pdb
 import faiss
 import time
 
@@ -21,7 +26,10 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s
                     level=logging.INFO)
 
 class Correction():
-    def __init__(self):
+    def __init__(self, macbert_model_path=None, macbert_bert_path=None):
+        # 0: 初始化 MacBERT 通用纠错模型（错别字、语法等）
+        self.macbert_model = None
+        self.init_macbert(macbert_model_path, macbert_bert_path)
         # 1: 初始化已经训练好的NER模型，用于对待纠错文本进行实体抽取
         self.init_ner()
         # 2: 初始化已经训练好的simcse模型，用于对下抽取出来的待纠错entity进行文本匹配
@@ -29,6 +37,21 @@ class Correction():
         # 在训练simcse模型的时候，已经设置了相似语义张量的维度为128，这里要和simcse模型参数保持一致
         self.dim = 128
         self.init_index()
+
+    # 初始化 MacBERT 通用纠错模型（若权重文件不存在则跳过，不阻塞整体流程）
+    def init_macbert(self, model_path=None, bert_path=None):
+        if model_path is None:
+            model_path = os.path.join(PROJECT_ROOT, 'macbert', 'output', 'bert4csc', 'best_model.pt')
+        if bert_path is None:
+            bert_path = os.path.join(PROJECT_ROOT, 'model', 'macbert_org')
+        if not os.path.exists(model_path):
+            logger.warning('MacBERT 权重未找到 ({}), 将仅使用 NER+SimCSE 专有名称纠错。'.format(model_path))
+            return
+        if not os.path.exists(bert_path):
+            logger.warning('MacBERT 预训练权重目录未找到 ({}), 跳过通用纠错初始化。'.format(bert_path))
+            return
+        logger.info('initialize MacBERT general correction model......')
+        self.macbert_model = MacBERTInference(model_path=model_path, bert_path=bert_path)
 
     # 初始化NER模型的函数
     def init_ner(self):
@@ -94,26 +117,20 @@ class Correction():
     # 注意：这是类内函数，属于Correction()类，需要有代码推进
     # 真正进行文本纠错的函数，此处为框架“伪代码”
     def correct(self, text, mode="distance_L"):
-        
-        # 1: 第一步对有错误的文本text执行NER预测，将实体提取出来
-        res = self.ner_predict(text)
-        # 2: 如果没有提取出实体，则文本text不需要纠错
-        if not res:
+        if not text or not text.strip():
             return text
-        
-        # 3: 遍历所有提取出来的实体
-        for item in res:
-            # 3.1: 如果实体本身就是"正确的股票名称"，则保留不变
-            if item in self.stock_dic:
-                new_item = item
-
-            else:
-
-                new_item, score = self.faiss_search(item, mode)
-
-            text = text.replace(item, new_item, 1)
-                # text: 徐家汇怎么样
-        # 返回纠错完毕的"正确文本text"
+        # 1: 先做专有股票名称纠错（NER 实体抽取 + SimCSE 对齐）
+        res = self.ner_predict(text)
+        if res:
+            for item in res:
+                if item in self.stock_dic:
+                    new_item = item
+                else:
+                    new_item, score = self.faiss_search(item, mode)
+                text = text.replace(item, new_item, 1)
+        # 2: 再做通用文本纠错（错别字、语法等），避免 MacBERT 改坏已对齐的股票名
+        if self.macbert_model is not None:
+            text = self.macbert_model.predict(text)
         return text
     
     def init_index(self):
@@ -189,6 +206,8 @@ if __name__ == '__main__':
     with open(file='./demo.txt', mode='r', encoding='utf-8') as f:
         for line in f:
             t = line.strip()
+            if not t:
+                continue
             start_time = time.time()
             # 如果采用编辑距离的模式
             new_t = corr.correct(t, mode='Levenshtein')

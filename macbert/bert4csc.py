@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import BertForMaskedLM
-from Chi_Spell_Correct.macbert.base_model import FocalLoss
+from macbert.base_model import FocalLoss
 
 # 构建macBert4CSC模型类
 class Bert4Csc(torch.nn.Module):

@@ -1,11 +1,10 @@
 # 导入相关工具包
 import os
 import sys
-sys.path.append('../..')
 import numpy as np
 from transformers import BertTokenizer, BertForMaskedLM
-from bert4csc import Bert4Csc
-from config import Args
+from macbert.bert4csc import Bert4Csc
+from macbert.config import Args
 from transformers import get_linear_schedule_with_warmup
 from torch.optim import AdamW
 import torch
@@ -67,8 +66,9 @@ class Inference():
         # 设定当前服务器环境的设备变量GPU or CPU
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        # 实例化macBERT4CSC类对象
+        # 实例化macBERT4CSC类对象（使用传入的 bert_path 覆盖 config 中的 bert_dir，便于从项目根目录调用）
         args = Args().get_parser()
+        args.bert_dir = bert_path
         self.model = Bert4Csc(args, self.tokenizer)
 
         # 如果有已经训练好的macbert4csc模型, 直接加载进model
