@@ -6,11 +6,11 @@ import json
 import logging
 import torch
 from torch.utils.data import DataLoader
-from src.trainer import train
-from src.config import Args
-from src.model import build_model
-from src.dataset_utils import NERDataset
-from src.functions_utils import set_seed, Data_Processor
+from trainer import train
+from config import Args
+from model import build_model
+from dataset_utils import NERDataset
+from functions_utils import set_seed, Data_Processor
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',

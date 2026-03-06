@@ -7,10 +7,10 @@ from torch.cuda.amp import autocast as ac
 from torch.utils.data import DataLoader, RandomSampler
 from transformers import get_linear_schedule_with_warmup
 from torch.optim import AdamW
-# from src.attack_train_utils import FGM, PGD # 文档中未提供此文件
-from src.functions_utils import load_model_and_parallel, swa
-from src.evaluate import model_evaluate
-from src.cal_metric import calculate
+# from attack_train_utils import FGM, PGD # 文档中未提供此文件
+from functions_utils import load_model_and_parallel, swa
+from evaluate import model_evaluate
+from cal_metric import calculate
 import pdb
 from tqdm import tqdm
 
@@ -22,7 +22,7 @@ def save_model(config, model, epoch):
         os.makedirs(config.output_dir, exist_ok=True)
     model_to_save = (model.module if hasattr(model, 'module') else model)
     # 保存文件命名为"best_model.pt"
-    torch.save(model_to_save.state_dict(), os.path.join(config.output_dir, 'best_model.bin'))
+    torch.save(model_to_save.state_dict(), os.path.join(config.output_dir, 'best_model.pt'))
 
 # 构建优化器和控制器
 def build_optimizer_and_scheduler(config, model, t_total):

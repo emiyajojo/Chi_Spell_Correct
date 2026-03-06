@@ -15,7 +15,10 @@ from torch.optim import AdamW
 from data import Supervised, Infer
 from model import TextBackbone
 from utils import swa, FGM, PGD  # 文档中FGM, PGD未提供实现
-
+SAVE_PATH="./output"
+MODEL_PATH=os.path.join(SAVE_PATH,"sup_model.pt")
+EMBED_SAVE=os.path.join(SAVE_PATH,"doc_embedding")
+BERT_PATH="../model/bert-base-chinese"
 # 设置⽇志的相关配置
 transformers.logging.set_verbosity_error()
 logger = logging.getLogger(__name__)
@@ -45,10 +48,10 @@ def sup_loss(y_pred, lamda=0.05):
 
 # 对⽇志⽂件做准备⼯作, 设置路径和写⼊格式
 def prepare():
-    os.makedirs('/hy-tmp/SimCSE/SimSCE-output', exist_ok=True)
+    os.makedirs(SAVE_PATH, exist_ok=True)
     now = datetime.now()
     log_file = now.strftime('%Y_%m_%d_%H_%M_%S') + '_log.txt'
-    return '/hy-tmp/SimCSE/SimSCE-output' + log_file
+    return SAVE_PATH + log_file
 
 def train(dataloader, model, optimizer, schedular, criterion, log_file, mode='unsup', attack_train=' '):
     if attack_train == 'fgm':
@@ -91,7 +94,7 @@ def train(dataloader, model, optimizer, schedular, criterion, log_file, mode='un
 # ⼊⼝主函数
 if __name__ == '__main__':
     # 实例化对⽐学习模型的对象model
-    model = TextBackbone().cuda()
+    model = TextBackbone(bert_path=BERT_PATH).cuda()
     
     # 训练阶段
     if mode == 'train':
@@ -136,13 +139,13 @@ if __name__ == '__main__':
             # 调⽤真实的训练函数
             train(dataloader, model, optimizer, schedular, criterion, log_file, mode='sup')
             # 每⼀个epoch轮次训练结束后, 对模型进⾏⼀次保存
-            torch.save(model.state_dict(), '/hy-tmp/SimCSE/SimSCE-output/sup_model.pt')
+            torch.save(model.state_dict(), MODEL_PATH)
             
     else:
         # 进⼊测试阶段(推理阶段)
         logger.info('make predict......')
         # 加载已经训练好的模型参数
-        model.load_state_dict(torch.load('/hy-tmp/SimCSE/SimSCE-output/sup_model.pt', map_location='cpu'), strict=True)
+        model.load_state_dict(torch.load(MODEL_PATH, map_location='cuda'), strict=True)
         
         # 将上⼀次存在的embedding张量⽂件删除
         if os.path.exists('doc_embedding'):
@@ -157,7 +160,8 @@ if __name__ == '__main__':
         companys = infer.get_companys()
         
         # 写⼊embedding张量⽂件
-        with open(file='/hy-tmp/SimCSE/SimSCE-output/doc_embedding', mode='w', encoding='utf-8') as f:
+        
+        with open(file=EMBED_SAVE, mode='w', encoding='utf-8') as f:
             for text in tqdm(companys):
                 # 调⽤推理对象infer, 获取股票名称text的数字化张量emb
                 emb = infer.get_emb(text).squeeze().detach().cpu().numpy().tolist()

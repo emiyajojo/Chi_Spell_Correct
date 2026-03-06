@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
 import os
-from src.evaluate import span_decode
+from evaluate import span_decode
 import numpy as np
 import random
 

@@ -4,7 +4,9 @@ import torch
 import torch.nn as nn
 from itertools import repeat
 from transformers import BertModel
-from .evaluate import span_decode
+import sys
+sys.path.append("/hy-tmp/Chi_Spell_Correct/span_src")
+from evaluate import span_decode
 import pdb
 
 # 标签平滑的交叉熵类代码

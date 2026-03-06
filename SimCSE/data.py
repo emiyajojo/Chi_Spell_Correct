@@ -5,23 +5,26 @@ import numpy as np
 import torch
 import torch.utils.data as data
 from transformers import BertTokenizer
-
+DATA_PATH='./data'
+BERT_PATH="../model/bert-base-chinese"
+STOCK_PATH=os.path.join(DATA_PATH,"stocks_name.csv")
 # 构建监督学习的对⽐学习数据类代码
 class Supervised(data.Dataset):
-    def __init__(self, path='/hy-tmp/SimCSE/SimCSE-data'):
+    def __init__(self, data_path=DATA_PATH,bert_path=BERT_PATH):
         super(Supervised, self).__init__()
         # 设置若⼲数据和参数
-        self.data_dir = os.path.join(path, 'train.json')
+        self.data_dir = os.path.join(data_path, 'train.json')
+        self.stocks_path=STOCK_PATH
         self.train_data = []
         self.company_list = self.get_list()
         self._create_train_data()
-        self.tokenizer = BertTokenizer.from_pretrained('/hy-tmp/bert')
+        self.tokenizer = BertTokenizer.from_pretrained(bert_path)
 
     # 读取公司股票数据⽂件, 存⼊列表中
     def get_list(self):
         company_list = []
         # 注意：文档中路径有时写为 ./data/stocks_name.csv
-        with open(file='/hy-tmp/SimCSE/SimCSE-data/stocks_name.csv', mode='r', encoding='utf-8') as f:
+        with open(file=self.stocks_path, mode='r', encoding='utf-8') as f:
             for i, line in enumerate(f):
                 if i == 0:
                     continue
@@ -67,8 +70,8 @@ class Supervised(data.Dataset):
 
 # 推理阶段的类
 class Infer():
-    def __init__(self, model):
-        self.tokenizer = BertTokenizer.from_pretrained('/hy-tmp/bert')
+    def __init__(self, model,bert_path="../model/bert-base-chinese"):
+        self.tokenizer = BertTokenizer.from_pretrained(bert_path)
         self.model = model
 
     # 输⼊⽂本text, 获取BERT的输出张量
@@ -80,7 +83,7 @@ class Infer():
 
     def get_companys(self):
         company_list = []
-        with open(file='/hy-tmp/SimCSE/SimCSE-data/stocks_name.csv', mode='r', encoding='utf-8') as f:
+        with open(file=STOCK_PATH, mode='r', encoding='utf-8') as f:
             for i, line in enumerate(f):
                 if i == 0:
                     continue

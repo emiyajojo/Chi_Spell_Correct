@@ -58,7 +58,7 @@ class MyToken():
 
 
 class Inference():
-    def __init__(self, model_path='./output/bert4csc/best_model.pt', bert_path='../macbert_chinese_base/'):
+    def __init__(self, model_path='./output/bert4csc/best_model.pt', bert_path='../model/macbert_org/'):
         # 实例化BERT模型的tokenizer对象
         print('Initializer the Inference model......')
         start_time = time.time()
@@ -71,7 +71,7 @@ class Inference():
         args = Args().get_parser()
         self.model = Bert4Csc(args, self.tokenizer)
 
-        # 如果有已经训练好的maxbert4csc模型, 直接加载进model
+        # 如果有已经训练好的macbert4csc模型, 直接加载进model
         if os.path.exists(model_path):
             self.model.load_state_dict(torch.load(model_path, map_location='cpu'), strict=True)
         else:

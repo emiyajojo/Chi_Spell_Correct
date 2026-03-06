@@ -8,7 +8,7 @@ class Args:
 
     @staticmethod
     def initialize(parser: argparse.ArgumentParser):
-        parser.add_argument('--bert_dir', default='./chi_macbert', help='the dir of bert weights')
+        parser.add_argument('--bert_dir', default='../model/macbert_org', help='the dir of bert weights')
         parser.add_argument('--model_name', default='bert4csc', help='model for macbert4csc')
         parser.add_argument('--hyper_params', default=0.2, help='params for model')
         parser.add_argument('--train_data', default='./data/train.json', help='train data for model')
@@ -28,7 +28,7 @@ class Args:
         parser.add_argument('--weight_decay', default=0.01, type=float)
         parser.add_argument('--adam_epsilon', default=1e-8, type=float)
         parser.add_argument('--train_batch_size', default=32, type=int)
-        parser.add_argument('--output_dir', default='output/bert4csc', type=str)
+        parser.add_argument('--output_dir', default='./output/bert4csc', type=str)
         parser.add_argument('--use_fp16', default=False, action='store_true', help='weather to use fp16 during training')
         return parser
 

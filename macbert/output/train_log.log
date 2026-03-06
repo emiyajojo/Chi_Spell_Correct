@@ -1,0 +1,62 @@
+Train begin!
+100%|████████████████████████████████| 985/985 [05:11<00:00,  3.16it/s]
+100%|██████████████████████████████| 3151/3151 [00:32<00:00, 95.48it/s]
+2026-03-06 17:37:11.844 | INFO     | __main__:train_process:97 - epoch 1/10, avg_loss: 88.3063
+epoch 1/10, avg_loss: 88.3063
+2026-03-06 17:37:12.488 | INFO     | __main__:train_process:109 - detect_f1: 95.7139, correct_f1: 83.9452, final_score: 93, best_score: 93.3602
+detect_f1: 95.7139, correct_f1: 83.9452, final_score: 93, best_score: 93.3602
+100%|████████████████████████████████| 985/985 [05:15<00:00,  3.12it/s]
+100%|█████████████████████████████| 3151/3151 [00:29<00:00, 105.94it/s]
+2026-03-06 17:42:58.433 | INFO     | __main__:train_process:97 - epoch 2/10, avg_loss: 21.975
+epoch 2/10, avg_loss: 21.975
+2026-03-06 17:42:59.395 | INFO     | __main__:train_process:109 - detect_f1: 97.8817, correct_f1: 90.9502, final_score: 96, best_score: 96.4954
+detect_f1: 97.8817, correct_f1: 90.9502, final_score: 96, best_score: 96.4954
+100%|████████████████████████████████| 985/985 [05:15<00:00,  3.12it/s]
+100%|█████████████████████████████| 3151/3151 [00:30<00:00, 105.01it/s]
+2026-03-06 17:48:44.936 | INFO     | __main__:train_process:97 - epoch 3/10, avg_loss: 17.7588
+epoch 3/10, avg_loss: 17.7588
+2026-03-06 17:48:46.005 | INFO     | __main__:train_process:109 - detect_f1: 98.3024, correct_f1: 94.5109, final_score: 98, best_score: 97.5441
+detect_f1: 98.3024, correct_f1: 94.5109, final_score: 98, best_score: 97.5441
+100%|████████████████████████████████| 985/985 [05:16<00:00,  3.11it/s]
+100%|█████████████████████████████| 3151/3151 [00:30<00:00, 103.93it/s]
+2026-03-06 17:54:33.384 | INFO     | __main__:train_process:97 - epoch 4/10, avg_loss: 15.712
+epoch 4/10, avg_loss: 15.712
+2026-03-06 17:54:34.342 | INFO     | __main__:train_process:109 - detect_f1: 98.6783, correct_f1: 96.5176, final_score: 98, best_score: 98.2462
+detect_f1: 98.6783, correct_f1: 96.5176, final_score: 98, best_score: 98.2462
+100%|████████████████████████████████| 985/985 [05:17<00:00,  3.11it/s]
+100%|█████████████████████████████| 3151/3151 [00:29<00:00, 106.70it/s]
+2026-03-06 18:00:21.380 | INFO     | __main__:train_process:97 - epoch 5/10, avg_loss: 14.5233
+epoch 5/10, avg_loss: 14.5233
+2026-03-06 18:00:22.471 | INFO     | __main__:train_process:109 - detect_f1: 98.6626, correct_f1: 97.347, final_score: 98, best_score: 98.3994
+detect_f1: 98.6626, correct_f1: 97.347, final_score: 98, best_score: 98.3994
+100%|████████████████████████████████| 985/985 [05:15<00:00,  3.13it/s]
+100%|█████████████████████████████| 3151/3151 [00:30<00:00, 104.46it/s]
+2026-03-06 18:06:07.992 | INFO     | __main__:train_process:97 - epoch 6/10, avg_loss: 13.7484
+epoch 6/10, avg_loss: 13.7484
+2026-03-06 18:06:08.967 | INFO     | __main__:train_process:109 - detect_f1: 98.7287, correct_f1: 97.5131, final_score: 98, best_score: 98.4856
+detect_f1: 98.7287, correct_f1: 97.5131, final_score: 98, best_score: 98.4856
+100%|████████████████████████████████| 985/985 [05:16<00:00,  3.11it/s]
+100%|█████████████████████████████| 3151/3151 [00:30<00:00, 103.18it/s]
+2026-03-06 18:11:56.570 | INFO     | __main__:train_process:97 - epoch 7/10, avg_loss: 13.2517
+epoch 7/10, avg_loss: 13.2517
+2026-03-06 18:11:57.533 | INFO     | __main__:train_process:109 - detect_f1: 98.7629, correct_f1: 98.2228, final_score: 99, best_score: 98.6549
+detect_f1: 98.7629, correct_f1: 98.2228, final_score: 99, best_score: 98.6549
+100%|████████████████████████████████| 985/985 [05:13<00:00,  3.14it/s]
+100%|█████████████████████████████| 3151/3151 [00:29<00:00, 105.33it/s]
+2026-03-06 18:17:41.689 | INFO     | __main__:train_process:97 - epoch 8/10, avg_loss: 12.9204
+epoch 8/10, avg_loss: 12.9204
+2026-03-06 18:17:42.666 | INFO     | __main__:train_process:109 - detect_f1: 98.8653, correct_f1: 98.4944, final_score: 99, best_score: 98.7912
+detect_f1: 98.8653, correct_f1: 98.4944, final_score: 99, best_score: 98.7912
+100%|████████████████████████████████| 985/985 [05:13<00:00,  3.14it/s]
+100%|█████████████████████████████| 3151/3151 [00:29<00:00, 105.18it/s]
+2026-03-06 18:23:26.522 | INFO     | __main__:train_process:97 - epoch 9/10, avg_loss: 12.6936
+epoch 9/10, avg_loss: 12.6936
+2026-03-06 18:23:27.565 | INFO     | __main__:train_process:109 - detect_f1: 98.9154, correct_f1: 98.5105, final_score: 99, best_score: 98.8344
+detect_f1: 98.9154, correct_f1: 98.5105, final_score: 99, best_score: 98.8344
+100%|████████████████████████████████| 985/985 [05:13<00:00,  3.14it/s]
+100%|█████████████████████████████| 3151/3151 [00:29<00:00, 105.54it/s]
+2026-03-06 18:29:11.628 | INFO     | __main__:train_process:97 - epoch 10/10, avg_loss: 12.4867
+epoch 10/10, avg_loss: 12.4867
+2026-03-06 18:29:12.698 | INFO     | __main__:train_process:109 - detect_f1: 98.8987, correct_f1: 98.6963, final_score: 99, best_score: 98.8582
+detect_f1: 98.8987, correct_f1: 98.6963, final_score: 99, best_score: 98.8582
+2026-03-06 18:29:12.750 | INFO     | __main__:train_process:115 - Train done!

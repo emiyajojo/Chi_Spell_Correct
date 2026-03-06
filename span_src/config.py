@@ -8,9 +8,9 @@ class Args:
 
     @staticmethod
     def initialize(parser: argparse.ArgumentParser):
-        parser.add_argument('--raw_data_dir', default='/hy-tmp/data', help='数据集的存放路径')
-        parser.add_argument('--output_dir', default='/hy-tmp/src/SimCSE-out', help='训练好的模型输出路径')
-        parser.add_argument('--bert_dir', default='/hy-tmp/bert', help='可以支持 ernie, roberta-wwm, bert, macbert')
+        parser.add_argument('--raw_data_dir', default='./data', help='数据集的存放路径')
+        parser.add_argument('--output_dir', default='./output', help='训练好的模型输出路径')
+        parser.add_argument('--bert_dir', default='../model/bert-base-chinese', help='可以支持 ernie, roberta-wwm, bert, macbert')
         parser.add_argument('--task_type', default='span', help='NER任务采用的模型类别, crf/span')
         parser.add_argument('--loss_type', default='ls_ce', help='损失函数的类型, crf/span')
         # other args

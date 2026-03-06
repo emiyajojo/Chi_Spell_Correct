@@ -7,9 +7,9 @@ import transformers
 transformers.logging.set_verbosity_error()
 
 class TextBackbone(torch.nn.Module):
-    def __init__(self, path='/hy-tmp/bert', output_dim=128):
+    def __init__(self, bert_path='/hy-tmp/Chi_Spell_Correct/model/bert-base-chinese', output_dim=128):
         super(TextBackbone, self).__init__()
-        self.bert = BertModel.from_pretrained(path).cuda()
+        self.bert = BertModel.from_pretrained(bert_path).cuda()
         self.drop = torch.nn.Dropout(p=0.1)
         self.fc = torch.nn.Linear(self.bert.config.hidden_size, output_dim)
 

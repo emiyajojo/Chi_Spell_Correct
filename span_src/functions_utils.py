@@ -5,10 +5,10 @@ import random
 import numpy as np
 from collections import defaultdict, Counter
 from datetime import timedelta
-from src.dataset_utils import NERDataset
+from dataset_utils import NERDataset
 import time
 from torch.utils.data import DataLoader, RandomSampler
-from src.model import build_model
+from model import build_model
 import logging
 import pdb
 import json

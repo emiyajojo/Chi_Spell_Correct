@@ -1,7 +1,7 @@
 import numpy as np
 from transformers import BertTokenizer
 import sys
-sys.path.append(["/hy-tmp/CSC_all"])
+sys.path.append(["/hy-tmp/Chi_Spell_Correct"])
 from SimCSE.model import TextBackbone
 from span_src.config import Args
 from span_src.model import build_model
@@ -34,21 +34,21 @@ class Correction():
     def init_ner(self):
         logger.info('initialize ner model......')
         opt = Args().get_parser()
-        self.tokenizer = BertTokenizer.from_pretrained('/hy-tmp/bert')
+        self.tokenizer = BertTokenizer.from_pretrained('./model/bert-base-chinese')
 
-        with open('/hy-tmp/CSC_all/span_src/span_data/span_ent2id.json', encoding='utf-8') as f:
+        with open('./span_src/data/span_ent2id.json', encoding='utf-8') as f:
             self.ent2id = json.load(f)
         self.id2ent = {v:k for k,v in self.ent2id.items()}
 
         # 在本类中，NER采用span指针的格式，本质上提前训练好，此处只做推理用!!!
-        opt.bert_dir = '/hy-tmp/bert'
+        opt.bert_dir = './model/bert-base-chinese'
         self.ner_model = build_model('span', opt.bert_dir, opt,
                                   num_tags=len(self.ent2id) + 1,
                                   dropout_prob=opt.dropout_prob,
                                   loss_type=opt.loss_type)
 
         # 将已经训练好的NER模型加载进来
-        ner_model_path = '/hy-tmp/CSC_all/span_src/Spanmodel-out/best_model.pt'
+        ner_model_path = 'span_src/output/best_model.pt'
         self.ner_model.load_state_dict(torch.load(ner_model_path, map_location="cuda:0"),
                                      strict=True)
 
@@ -62,7 +62,7 @@ class Correction():
         # 在本类中，本质上也是将提前训练好的simcse模型加载进来，用于比较文本相似度的预测模型来使用!!!
         self.simcse_model = TextBackbone().cuda()
 
-        simcse_model_path = '/hy-tmp/CSC_all/SimCSE/SimSCE-output/sup_model.pt'
+        simcse_model_path = '/hy-tmp/Chi_Spell_Correct/SimCSE/output/sup_model.pt'
         self.simcse_model.load_state_dict(torch.load(simcse_model_path,map_location="cuda:0"), strict=True)
 
         # 放置到GPU上，并设置为预测模式
@@ -121,7 +121,7 @@ class Correction():
         embeddings = []
         texts = []
         # 将训练simcse模型时得到的文本相似度张量，以文件的模式加载进来
-        with open('/hy-tmp/CSC_all/SimCSE/SimSCE-output/doc_embedding', mode='r', encoding='utf-8') as f:
+        with open('/hy-tmp/Chi_Spell_Correct/SimCSE/output/doc_embedding', mode='r', encoding='utf-8') as f:
             for line in f:
                 text, emb = line.strip().split('\t')
                 # 文本相似度张量是128维度，以','分隔的向量，要转换成float类型
