@@ -3,3 +3,4 @@
 /.ipynb*
 macbert/chi_macbert/*
 model/*
+onnx_output/*

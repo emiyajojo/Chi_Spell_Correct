@@ -8,111 +8,166 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from SimCSE.model import TextBackbone
-from span_src.config import Args
-from span_src.model import build_model
-from utils import generate_input, span_decode, edit_distance
-from macbert.utils import Inference as MacBERTInference
-
 import logging
 import json
 import torch
 import faiss
 import time
 
+# ONNX 推理：若 onnx_output/ 下存在三个 .onnx 文件则优先使用 ONNX
+ONNX_OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'onnx_output')
+ONNX_MAX_LENGTH = 128
+
+def _use_onnx():
+    for name in ('macbert.onnx', 'simcse.onnx', 'span.onnx'):
+        if not os.path.exists(os.path.join(ONNX_OUTPUT_DIR, name)):
+            return False
+    return True
+
+try:
+    import onnxruntime as ort
+    _HAS_ONNXRUNTIME = True
+except ImportError:
+    _HAS_ONNXRUNTIME = False
+
+from SimCSE.model import TextBackbone
+from span_src.config import Args
+from span_src.model import build_model
+from utils import generate_input, span_decode, edit_distance
+from macbert.utils import Inference as MacBERTInference
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
 
+def _generate_input_onnx(text, tokenizer, max_length=ONNX_MAX_LENGTH):
+    """生成 ONNX 推理用的 numpy 输入，固定 max_length。"""
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("_generate_input_onnx: text 不能为空，请在上层跳过空实体后再调用。")
+    enc = tokenizer.encode_plus(
+        list(text),
+        max_length=max_length,
+        padding='max_length',
+        truncation=True,
+        is_pretokenized=True,
+        return_token_type_ids=True,
+        return_attention_mask=True,
+        return_tensors='pt',
+    )
+    return {k: v.numpy().astype(np.int64) for k, v in enc.items()}
+
+
 class Correction():
-    def __init__(self, macbert_model_path=None, macbert_bert_path=None):
-        # 0: 初始化 MacBERT 通用纠错模型（错别字、语法等）
-        self.macbert_model = None
-        self.init_macbert(macbert_model_path, macbert_bert_path)
-        # 1: 初始化已经训练好的NER模型，用于对待纠错文本进行实体抽取
-        self.init_ner()
-        # 2: 初始化已经训练好的simcse模型，用于对下抽取出来的待纠错entity进行文本匹配
-        self.init_simcse()
-        # 在训练simcse模型的时候，已经设置了相似语义张量的维度为128，这里要和simcse模型参数保持一致
+    def __init__(self, macbert_model_path=None, macbert_bert_path=None, use_onnx=None):
+        self.use_onnx = (use_onnx if use_onnx is not None else (_HAS_ONNXRUNTIME and _use_onnx()))
+        if self.use_onnx:
+            logger.info('使用 ONNX 推理（onnx_output/ 下已存在三个 .onnx 模型）')
         self.dim = 128
+        # 0: MacBERT 通用纠错
+        self.macbert_model = None
+        self.macbert_onnx_session = None
+        self.macbert_tokenizer = None
+        self.init_macbert(macbert_model_path, macbert_bert_path)
+        # 1: NER（span）
+        self.init_ner()
+        # 2: SimCSE
+        self.init_simcse()
         self.init_index()
 
-    # 初始化 MacBERT 通用纠错模型（若权重文件不存在则跳过，不阻塞整体流程）
+    # 初始化 MacBERT 通用纠错模型（若权重/ONNX 不存在则跳过）
     def init_macbert(self, model_path=None, bert_path=None):
-        if model_path is None:
-            model_path = os.path.join(PROJECT_ROOT, 'macbert', 'output', 'bert4csc', 'best_model.pt')
         if bert_path is None:
             bert_path = os.path.join(PROJECT_ROOT, 'model', 'macbert_org')
-        if not os.path.exists(model_path):
-            logger.warning('MacBERT 权重未找到 ({}), 将仅使用 NER+SimCSE 专有名称纠错。'.format(model_path))
-            return
         if not os.path.exists(bert_path):
             logger.warning('MacBERT 预训练权重目录未找到 ({}), 跳过通用纠错初始化。'.format(bert_path))
+            return
+        onnx_path = os.path.join(ONNX_OUTPUT_DIR, 'macbert.onnx')
+        if self.use_onnx and _HAS_ONNXRUNTIME and os.path.exists(onnx_path):
+            logger.info('initialize MacBERT (ONNX)......')
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if torch.cuda.is_available() else ['CPUExecutionProvider']
+            self.macbert_onnx_session = ort.InferenceSession(onnx_path, providers=providers)
+            self.macbert_tokenizer = BertTokenizer.from_pretrained(bert_path)
+            return
+        model_path = model_path or os.path.join(PROJECT_ROOT, 'macbert', 'output', 'bert4csc', 'best_model.pt')
+        if not os.path.exists(model_path):
+            logger.warning('MacBERT 权重未找到 ({}), 将仅使用 NER+SimCSE 专有名称纠错。'.format(model_path))
             return
         logger.info('initialize MacBERT general correction model......')
         self.macbert_model = MacBERTInference(model_path=model_path, bert_path=bert_path)
 
-    # 初始化NER模型的函数
+    # 初始化NER模型的函数（tokenizer、ent2id 与 ONNX/PyTorch 共用）
     def init_ner(self):
         logger.info('initialize ner model......')
         opt = Args().get_parser()
-        self.tokenizer = BertTokenizer.from_pretrained('./model/bert-base-chinese')
-
-        with open('./span_src/data/span_ent2id.json', encoding='utf-8') as f:
+        self.tokenizer = BertTokenizer.from_pretrained(os.path.join(PROJECT_ROOT, 'model', 'bert-base-chinese'))
+        with open(os.path.join(PROJECT_ROOT, 'span_src', 'data', 'span_ent2id.json'), encoding='utf-8') as f:
             self.ent2id = json.load(f)
-        self.id2ent = {v:k for k,v in self.ent2id.items()}
+        self.id2ent = {v: k for k, v in self.ent2id.items()}
 
-        # 在本类中，NER采用span指针的格式，本质上提前训练好，此处只做推理用!!!
-        opt.bert_dir = './model/bert-base-chinese'
+        span_onnx_path = os.path.join(ONNX_OUTPUT_DIR, 'span.onnx')
+        if self.use_onnx and _HAS_ONNXRUNTIME and os.path.exists(span_onnx_path):
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if torch.cuda.is_available() else ['CPUExecutionProvider']
+            self.ner_onnx_session = ort.InferenceSession(span_onnx_path, providers=providers)
+            self.ner_model = None
+            return
+        opt.bert_dir = os.path.join(PROJECT_ROOT, 'model', 'bert-base-chinese')
         self.ner_model = build_model('span', opt.bert_dir, opt,
-                                  num_tags=len(self.ent2id) + 1,
-                                  dropout_prob=opt.dropout_prob,
-                                  loss_type=opt.loss_type)
-
-        # 将已经训练好的NER模型加载进来
-        ner_model_path = 'span_src/output/best_model.pt'
-        self.ner_model.load_state_dict(torch.load(ner_model_path, map_location="cuda:0"),
-                                     strict=True)
-
-        # 放置到GPU上，并设置为预测模式
+                                     num_tags=len(self.ent2id) + 1,
+                                     dropout_prob=opt.dropout_prob,
+                                     loss_type=opt.loss_type)
+        ner_model_path = os.path.join(PROJECT_ROOT, 'span_src', 'output', 'best_model.pt')
+        self.ner_model.load_state_dict(torch.load(ner_model_path, map_location='cuda:0'), strict=True)
         self.ner_model.cuda()
         self.ner_model.eval()
+        self.ner_onnx_session = None  # PyTorch 分支无 ONNX
 
-    # 初始化simcse模型的函数
+    # 初始化 SimCSE 模型
     def init_simcse(self):
         logger.info('initialize simcse model......')
-        # 在本类中，本质上也是将提前训练好的simcse模型加载进来，用于比较文本相似度的预测模型来使用!!!
-        self.simcse_model = TextBackbone().cuda()
-
-        simcse_model_path = '/hy-tmp/Chi_Spell_Correct/SimCSE/output/sup_model.pt'
-        self.simcse_model.load_state_dict(torch.load(simcse_model_path,map_location="cuda:0"), strict=True)
-
-        # 放置到GPU上，并设置为预测模式
-        self.simcse_model.cuda()
+        simcse_onnx_path = os.path.join(ONNX_OUTPUT_DIR, 'simcse.onnx')
+        if self.use_onnx and _HAS_ONNXRUNTIME and os.path.exists(simcse_onnx_path):
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if torch.cuda.is_available() else ['CPUExecutionProvider']
+            self.simcse_onnx_session = ort.InferenceSession(simcse_onnx_path, providers=providers)
+            self.simcse_model = None
+            return
+        self.simcse_model = TextBackbone(bert_path=os.path.join(PROJECT_ROOT, 'model', 'bert-base-chinese')).cuda()
+        simcse_model_path = os.path.join(PROJECT_ROOT, 'SimCSE', 'output', 'sup_model.pt')
+        self.simcse_model.load_state_dict(torch.load(simcse_model_path, map_location='cuda:0'), strict=True)
         self.simcse_model.eval()
+        self.simcse_onnx_session = None  # PyTorch 分支无 ONNX
 
-    # 将待纠错的文本get_emb，通过simcse模型直接预测出相似文本张量，并返回
     def simcse_get_emb(self, text):
+        if getattr(self, 'simcse_onnx_session', None) is not None:
+            inp = _generate_input_onnx(text.strip(), self.tokenizer)
+            out = self.simcse_onnx_session.run(None, {
+                'input_ids': inp['input_ids'],
+                'attention_mask': inp['attention_mask'],
+                'token_type_ids': inp['token_type_ids'],
+            })
+            return np.array(out[0], dtype=np.float32)
         text = list(text.strip())
         input = self.tokenizer.encode_plus(text, return_tensors='pt').to('cuda:0')
         emb = self.simcse_model.predict(input)
         return emb
+
     def ner_predict(self, text):
-        # 1: 调用tokenizer将text进行切割处理
+        if getattr(self, 'ner_onnx_session', None) is not None:
+            inp = _generate_input_onnx(text, self.tokenizer)
+            start_logits, end_logits = self.ner_onnx_session.run(None, {
+                'input_ids': inp['input_ids'],
+                'attention_mask': inp['attention_mask'],
+                'token_type_ids': inp['token_type_ids'],
+            })
+            start_logits = start_logits[0][1:-1]
+            end_logits = end_logits[0][1:-1]
+            return span_decode(start_logits, end_logits, text, self.id2ent)
         inputs = generate_input(text, self.tokenizer)
-
-        # 2: 调用NER模型执行实体抽取，此处模型采用span指针的模式
-        decode_output = self.ner_model( **inputs)
-
-        # 3: 获取起始位置start的概率分布，结束位置end的概率分布
+        decode_output = self.ner_model(**inputs)
         start_logits = decode_output[0].detach().cpu().numpy()[0][1:-1]
         end_logits = decode_output[1].detach().cpu().numpy()[0][1:-1]
-
-        # 4: 执行span解码函数处理，真正的获取到从待纠错文本text中提取到的entities
-        predict = span_decode(start_logits, end_logits, text, self.id2ent)
-
-        return predict
+        return span_decode(start_logits, end_logits, text, self.id2ent)
 
     # 注意：这是类内函数，属于Correction()类，需要有代码推进
     # 真正进行文本纠错的函数，此处为框架“伪代码”
@@ -123,22 +178,42 @@ class Correction():
         res = self.ner_predict(text)
         if res:
             for item in res:
+                if not item or not item.strip():
+                    continue
                 if item in self.stock_dic:
                     new_item = item
                 else:
                     new_item, score = self.faiss_search(item, mode)
                 text = text.replace(item, new_item, 1)
-        # 2: 再做通用文本纠错（错别字、语法等），避免 MacBERT 改坏已对齐的股票名
-        if self.macbert_model is not None:
+        # 2: 再做通用文本纠错（错别字、语法等）
+        if getattr(self, 'macbert_onnx_session', None) is not None:
+            text = self._macbert_onnx_predict(text)
+        elif self.macbert_model is not None:
             text = self.macbert_model.predict(text)
         return text
+
+    def _macbert_onnx_predict(self, text):
+        enc = self.macbert_tokenizer(
+            text,
+            max_length=ONNX_MAX_LENGTH,
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt',
+            return_token_type_ids=True,
+            return_attention_mask=True,
+        )
+        inputs = {k: v.numpy().astype(np.int64) for k, v in enc.items()}
+        _, logits = self.macbert_onnx_session.run(None, inputs)
+        seq_len = int(enc['attention_mask'].sum(axis=1).item()) - 1
+        pred_ids = np.argmax(logits[0], axis=-1)[1:seq_len]
+        return self.macbert_tokenizer.decode(pred_ids).replace(' ', '')
     
     def init_index(self):
         logger.info('build faiss index......')
         embeddings = []
         texts = []
         # 将训练simcse模型时得到的文本相似度张量，以文件的模式加载进来
-        with open('/hy-tmp/Chi_Spell_Correct/SimCSE/output/doc_embedding', mode='r', encoding='utf-8') as f:
+        with open(os.path.join(PROJECT_ROOT, 'SimCSE', 'output', 'doc_embedding'), mode='r', encoding='utf-8') as f:
             for line in f:
                 text, emb = line.strip().split('\t')
                 # 文本相似度张量是128维度，以','分隔的向量，要转换成float类型
@@ -159,10 +234,11 @@ class Correction():
         self.stock_name = texts
     def faiss_search(self, text, mode='distance_L', k=15):
         # 待纠错的文本text，返回纠错后的正确文本以及得分
-        # 1: 首先得到错误文本text对应的simcse相似度张量
-        # text: 徐家汇
-        emb = self.simcse_get_emb(text).squeeze().detach().cpu().numpy().tolist()
-        # 移动到CPU上，转换成numpy数据类型，再转换成list类型后，就可以封装成numpy的array张量
+        # 1: 得到错误文本 text 的 SimCSE 向量
+        e = self.simcse_get_emb(text)
+        emb = np.asarray(e).squeeze()
+        if hasattr(emb, 'tolist'):
+            emb = emb.tolist()
         emb = np.array([emb], dtype='float32')
         # emb: [[ 0.11050283  0.01384767  0.0433474   0.22737686  0.10507135
         # -0.07436085

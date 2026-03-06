@@ -54,19 +54,28 @@ def generate_input(text, tokenizer):
 # 进行指针span模式的NER解码函数
 def span_decode(start_logits, end_logits, raw_text, id2ent):
     predict=[]
+    # 实际文本长度（ONNX 会 pad 到 max_length，logits 长度可能大于文本长度，只解码有效范围）
+    valid_len = min(len(start_logits), len(raw_text))
     # 起始指针，结束指针的预测位置
     start_pred = np.argmax(start_logits, -1)
     end_pred = np.argmax(end_logits, -1)
 
     # 双重循环遍历起始指针，结束指针，利用pointer span的模式进行实体抽取
     for i, s_type in enumerate(start_pred):
+        if i >= valid_len:
+            break
         if s_type == 0:
             continue
         for j, e_type in enumerate(end_pred[i:]):
             # 起始指针，结束指针，两者类型相同，说明提取出了一个有效实体
             if s_type == e_type:
-                # 通过原始文本将实体截取出来
-                tmp_ent = raw_text[i: i + j + 1]
+                # 通过原始文本将实体截取出来（仅当 end 在有效范围内才接受，避免 ONNX pad 导致空串）
+                end_idx = i + j + 1
+                if end_idx > len(raw_text):
+                    break
+                tmp_ent = raw_text[i: end_idx]
+                if not tmp_ent:
+                    break
                 # 将实体，start，end，实体类型，总共4个信息打包加进预测结果列表中
                 predict.append((tmp_ent, i, i + j, s_type))
                 # NER思路：一个起始位置，只提取一个实体，不进行同位置嵌套实体的抽取
