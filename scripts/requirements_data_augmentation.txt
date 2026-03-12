@@ -1,0 +1,6 @@
+# 数据增强脚本依赖（LangChain + DeepSeek + 噪声注入）
+langchain-openai>=0.2.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+pydantic>=2.0
+pypinyin>=0.50.0

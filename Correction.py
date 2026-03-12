@@ -267,9 +267,7 @@ class Correction():
         max_score, best_res = 10000, None
         # 将ner模型提取出来的"待纠错实体ent"，和从faiss库中搜索到的"正确的实体召回集合candidates"做评分对比
         for candi in candidates:
-            if mode == 'Levenshtein':
-                score = edit_distance(ent, candi)
-            # 迭代更新最优分数和最优解实体
+            score = edit_distance(ent, candi)  # distance_L 与 Levenshtein 均用编辑距离排序
             if score < max_score:
                 max_score = score
                 best_res = candi

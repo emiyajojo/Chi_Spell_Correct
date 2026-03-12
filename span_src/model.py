@@ -6,8 +6,7 @@ from itertools import repeat
 from transformers import BertModel
 import sys
 sys.path.append("/hy-tmp/Chi_Spell_Correct/span_src")
-from evaluate import span_decode
-import pdb
+
 
 # 标签平滑的交叉熵类代码
 class LabelSmoothingCrossEntropy(nn.Module):
