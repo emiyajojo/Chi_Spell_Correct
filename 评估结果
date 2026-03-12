@@ -1,0 +1,17 @@
+========== 核心指标 ==========
+Metric                         Value
+---------------------------  -------
+Precision                     0.6903
+Recall                        0.7406
+F1-Score                      0.7146
+F0.5-Score                    0.6998
+过纠率 (noise_type=correct)   0.1633
+
+========== 分类别召回 (Breakdown) ==========
+noise_type      count    correct    recall
+------------  -------  ---------  --------
+correct           300        251    0.8367
+phonetic          300        262    0.8733
+order             300        231    0.77
+missing           300        159    0.53
+extra             300        267    0.89

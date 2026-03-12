@@ -2,7 +2,7 @@ import numpy as np
 from transformers import BertTokenizer
 import sys
 import os
-
+import argparse
 # 保证项目根目录在 path 中，便于正确 import macbert、SimCSE、span_src 等
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
@@ -170,26 +170,31 @@ class Correction():
         return span_decode(start_logits, end_logits, text, self.id2ent)
 
     # 注意：这是类内函数，属于Correction()类，需要有代码推进
-    # 真正进行文本纠错的函数，此处为框架“伪代码”
-    def correct(self, text, mode="distance_L"):
+    # 真正进行文本纠错的函数。
+    # scope: "all"=领域+通用都做（默认）, "entity"=仅领域名词（span_src+SimCSE）, "general"=仅通用纠错（MacBERT）
+    def correct(self, text, mode="distance_L", scope="all"):
         if not text or not text.strip():
             return text
-        # 1: 先做专有股票名称纠错（NER 实体抽取 + SimCSE 对齐）
-        res = self.ner_predict(text)
-        if res:
-            for item in res:
-                if not item or not item.strip():
-                    continue
-                if item in self.stock_dic:
-                    new_item = item
-                else:
-                    new_item, score = self.faiss_search(item, mode)
-                text = text.replace(item, new_item, 1)
-        # 2: 再做通用文本纠错（错别字、语法等）
-        if getattr(self, 'macbert_onnx_session', None) is not None:
-            text = self._macbert_onnx_predict(text)
-        elif self.macbert_model is not None:
-            text = self.macbert_model.predict(text)
+        do_entity = scope in ("all", "entity")
+        do_general = scope in ("all", "general")
+        # 1: 专有股票名称纠错（NER 实体抽取 + SimCSE 对齐）
+        if do_entity:
+            res = self.ner_predict(text)
+            if res:
+                for item in res:
+                    if not item or not item.strip():
+                        continue
+                    if item in self.stock_dic:
+                        new_item = item
+                    else:
+                        new_item, score = self.faiss_search(item, mode)
+                    text = text.replace(item, new_item, 1)
+        # 2: 通用文本纠错（错别字、语法等）
+        if do_general:
+            if getattr(self, 'macbert_onnx_session', None) is not None:
+                text = self._macbert_onnx_predict(text)
+            elif self.macbert_model is not None:
+                text = self.macbert_model.predict(text)
         return text
 
     def _macbert_onnx_predict(self, text):
@@ -275,16 +280,21 @@ class Correction():
         return best_res, max_score
 
 if __name__ == '__main__':
-    # 实例化纠错类Correction()
+    # 先解析 Correction 自有参数（parse_known_args），避免 span_src.Args().get_parser() 收到 --scope/--mode 报错
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default='Levenshtein', help='纠错模式：Levenshtein 或 distance_L')
+    parser.add_argument('--scope', type=str, default='all', help='纠错范围：all=领域+通用, entity=仅领域(span+SimCSE), general=仅通用(MacBERT)')
+    args, _ = parser.parse_known_args()
+    sys.argv = [sys.argv[0]]  # 清掉命令行参数，防止 init_ner 里 span_src.Args().get_parser() 报 unrecognized
     corr = Correction()
+    # scope: "all" 领域+通用, "entity" 仅领域名词(span+SimCSE), "general" 仅通用(MacBERT)
     with open(file='./demo.txt', mode='r', encoding='utf-8') as f:
         for line in f:
             t = line.strip()
             if not t:
                 continue
             start_time = time.time()
-            # 如果采用编辑距离的模式
-            new_t = corr.correct(t, mode='Levenshtein')
+            new_t = corr.correct(t, mode=args.mode, scope=args.scope)
             end_time = time.time()
             cost_time = end_time - start_time
-            print('{}\t{}\t{}'.format(t, new_t, cost_time))
+            print('{}\t{}\t{}ms'.format(t, new_t, cost_time*1000))

@@ -182,7 +182,7 @@ def export_span_onnx():
 
 if __name__ == '__main__':
     print('开始导出 ONNX 模型，输出目录: {}'.format(ONNX_OUTPUT_DIR))
-    export_macbert_onnx()
+    # export_macbert_onnx()
     export_simcse_onnx()
     export_span_onnx()
     print('导出结束。')
