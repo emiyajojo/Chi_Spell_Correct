@@ -48,12 +48,20 @@ def load_predictions(path: Path) -> list[str]:
         return [line.rstrip("\n") for line in f]
 
 
+# 全角 -> 半角标点（评估比较时统一，避免格式差异被判错）
+_FULL_TO_HALF = str.maketrans(
+    "，。！？；：“”‘’（）【】、　",
+    ",.!?;:\"\"''()[]、 ",
+)
+
 
 def normalize_for_eval(s: str) -> str:
-    """评估时归一化：去掉所有空白字符，避免仅因空格差异被判错。"""
+    """评估时归一化：统一全半角标点、去掉空白、统一小写，避免全角/大小写/空格差异被判错。"""
     if s is None:
         return ""
-    return "".join(str(s).split())
+    s = str(s).translate(_FULL_TO_HALF)
+    s = "".join(s.split())
+    return s.lower()
 
 
 def compute_metrics(eval_data: list[dict], predictions: list[str]) -> dict:
