@@ -15,3 +15,24 @@ phonetic          300        262    0.8733
 order             300        231    0.77
 missing           300        159    0.53
 extra             300        267    0.89
+
+
+✅ 导出完成！共记录 49 条样本。
+
+========== 核心指标 ==========
+Metric                         Value
+---------------------------  -------
+Precision                     0.7598
+Recall                        0.7882
+F1-Score                      0.7737
+F0.5-Score                    0.7653
+过纠率 (noise_type=correct)   0.09
+
+========== 分类别召回 (Breakdown) ==========
+noise_type      count    correct    recall
+------------  -------  ---------  --------
+correct           300        273    0.91
+phonetic          300        281    0.9367
+order             300        245    0.8167
+missing           300        172    0.5733
+extra             300        281    0.9367

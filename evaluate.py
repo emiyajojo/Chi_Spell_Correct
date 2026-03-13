@@ -207,13 +207,13 @@ def main():
 
     with open(output_bad_cases_path, "w", encoding="utf-8") as f:
         f.write("=== 金融纠错：过纠样本 (Over-correction/False Positives) 详细报告 ===\n")
-        f.write(f"说明：这些样本的 noise_type 为 'correct'，但模型对其进行了修改。\n")
+        f.write(f"说明：noise_type 为 'correct' 且模型做了实质性修改（归一化后 pred≠原句，与过纠率统计口径一致）。\n")
         f.write("="*60 + "\n")
         
         over_correction_count = 0
         
         for i, item in enumerate(eval_data):
-            if item.get("noise_type") == "correct" and predictions[i] != item["text"]:
+            if item.get("noise_type") == "correct" and normalize_for_eval(predictions[i]) != normalize_for_eval(item["text"]):
                 over_correction_count += 1
                 
                 f.write(f"\n[Case {over_correction_count}] 索引: {i}\n")
